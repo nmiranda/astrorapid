@@ -356,11 +356,12 @@ class PrepareTrainingSetArrays(PrepareArrays):
             labels[i] = class_name
             y[i][0:len_t][activeindexes] = class_name
 
-        deleterows = np.array(deleterows)
-        X = np.delete(X, deleterows, axis=0)
-        y = np.delete(y, deleterows, axis=0)
-        labels = np.delete(labels, deleterows, axis=0)
-        timesX = np.delete(timesX, deleterows, axis=0)
+        if len(deleterows) > 0:
+            deleterows = np.array(deleterows)
+            X = np.delete(X, deleterows, axis=0)
+            y = np.delete(y, deleterows, axis=0)
+            labels = np.delete(labels, deleterows, axis=0)
+            timesX = np.delete(timesX, deleterows, axis=0)
         count_deleterows = len(deleterows)
         num_objects = X.shape[0]
 
