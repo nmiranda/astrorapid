@@ -109,7 +109,7 @@ class PrepareTrainingSetArrays(PrepareArrays):
         return augmented_light_curves
 
 
-    def prepare_training_set_arrays(self, otherchange='', class_nums=(1,), nprocesses=1, train_size=0.6):
+    def prepare_training_set_arrays(self, otherchange='', class_nums=(1,), nprocesses=1, split_data=True, train_size=0.6):
         savepath = os.path.join(self.training_set_dir,
                                 "X_{}ci{}_z{}_b{}_ig{}.npy".format(otherchange, self.contextual_info, self.zcut,
                                                                          self.bcut, self.ignore_classes))
@@ -263,9 +263,10 @@ class PrepareTrainingSetArrays(PrepareArrays):
         X, y, labels, timesX, orig_lc, objids_list = shuffle(X, y, labels, timesX, orig_lc, objids_list)
         print("Done shuffling")
 
-        X_train, X_test, y_train, y_test, labels_train, labels_test, timesX_train, timesX_test, orig_lc_train, \
-        orig_lc_test, objids_train, objids_test = train_test_split(
-            X, y, labels, timesX, orig_lc, objids_list, train_size=train_size, shuffle=False, random_state=42)
+        if split_data:
+            X_train, X_test, y_train, y_test, labels_train, labels_test, timesX_train, timesX_test, orig_lc_train, \
+            orig_lc_test, objids_train, objids_test = train_test_split(
+                X, y, labels, timesX, orig_lc, objids_list, train_size=train_size, shuffle=False, random_state=42)
 
         def augment_crop_lightcurves(X_local, y_local, labels_local, timesX_local, orig_lc_local, objids_local):
             X_local = copy.copy(X_local)
@@ -295,6 +296,24 @@ class PrepareTrainingSetArrays(PrepareArrays):
             objids_local = np.concatenate((objids_local, objids_local))
 
             return X_local, y_local, labels_local, timesX_local, orig_lc_local, objids_local
+
+        if not split_data:
+            X_aug, y_aug, labels_aug, timesX_aug, orig_lc_aug, objids_aug = augment_crop_lightcurves(X, y, labels, timesX, orig_lc, objids_list)
+            
+            counts = np.unique(labels_aug, return_counts=True)[-1]
+            class_weights = max(counts) / counts
+            class_weights = dict(zip(range(len(counts)), class_weights))
+            print("Class weights:", class_weights)
+
+            # Sample weights
+            l_aug_indexes = np.copy(labels_aug)
+            for i, c in enumerate(classes):
+                l_aug_indexes[l_aug_indexes == c] = i
+            sample_weights = np.zeros(len(l_aug_indexes))
+            for key, val in class_weights.items():
+                sample_weights[l_aug_indexes == key] = val
+
+            return X_aug, y_aug, labels_aug, classes, class_weights, sample_weights, timesX_aug, orig_lc_aug, objids_aug
 
         X_train, y_train, labels_train, timesX_train, orig_lc_train, objids_train = augment_crop_lightcurves(X_train, y_train, labels_train, timesX_train, orig_lc_train, objids_train)
         X_test, y_test, labels_test, timesX_test, orig_lc_test, objids_test = augment_crop_lightcurves(X_test, y_test, labels_test, timesX_test, orig_lc_test, objids_test)
